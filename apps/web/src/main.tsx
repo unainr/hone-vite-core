@@ -4,6 +4,9 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import './index.css'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from './lib/query-client'
+import { ClerkProvider } from '@clerk/react'
 
 // Create a new router instance
 const router = createRouter({ routeTree })
@@ -21,7 +24,13 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
+       <ClerkProvider>
+
+        <QueryClientProvider client={queryClient}>
+
       <RouterProvider router={router} />
+        </QueryClientProvider>
+       </ClerkProvider>
     </StrictMode>,
   )
 }
