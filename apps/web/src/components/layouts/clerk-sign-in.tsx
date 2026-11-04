@@ -1,6 +1,7 @@
 import { Show, UserButton } from "@clerk/react";
 import { Link } from "@tanstack/react-router";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button"
+
 
 export const SignInButtonClerk = () => {
   return (
@@ -17,7 +18,7 @@ export const SignInButtonClerk = () => {
             appearance={{ elements: { avatarBox: "size-8" } }}
           />
           <Button variant="outline" asChild className="rounded-full">
-            <Link to="/">Dashboard</Link>
+            <Link to="/dashboard">Dashboard</Link>
           </Button>
         </div>
       </Show>
