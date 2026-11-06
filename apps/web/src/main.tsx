@@ -6,8 +6,6 @@ import "./index.css";
 import { routeTree } from "./routeTree.gen";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/query-client";
-import { ClerkProvider } from "@clerk/react";
-import { HonoAuthBridge } from "./lib/hono-bridge";
 
 // Create a new router instance
 const router = createRouter({ routeTree });
@@ -25,12 +23,9 @@ if (!rootElement.innerHTML) {
 	const root = ReactDOM.createRoot(rootElement);
 	root.render(
 		<StrictMode>
-			<ClerkProvider>
-				<QueryClientProvider client={queryClient}>
-					<HonoAuthBridge />
-					<RouterProvider router={router} />
-				</QueryClientProvider>
-			</ClerkProvider>
+			<QueryClientProvider client={queryClient}>
+				<RouterProvider router={router} />
+			</QueryClientProvider>
 		</StrictMode>,
 	);
 }

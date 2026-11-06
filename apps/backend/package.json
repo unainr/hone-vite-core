@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.76",
-    "@clerk/hono": "^0.1.96",
     "@hono/zod-validator": "^0.9.1",
     "@neondatabase/serverless": "^1.2.0",
     "ai": "^7.0.162",
+    "better-auth": "^1.7.17",
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.16",
@@ -22,6 +22,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@better-auth/cli": "^1.4.21",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",
     "wrangler": "^4.110.0"

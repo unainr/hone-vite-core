@@ -1,23 +1,23 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { clerkMiddleware } from "@clerk/hono";
 import chat from "./routes/chat";
-
+import { auth } from "./lib/better-auth";
+import { logger } from "hono/logger";
+import { HTTPException } from "hono/http-exception";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
+
 	.basePath("/api")
+	.use("*", logger())
 	.use("*", async (c, next) => {
 		return cors({
 			origin: c.env.WEB_URL,
 			credentials: true,
 		})(c, next);
 	})
-	.use("*", async (c, next) => {
-		return clerkMiddleware({
-			publishableKey: c.env.CLERK_PUBLISHABLE_KEY,
-			secretKey: c.env.CLERK_SECRET_KEY,
-		})(c, next);
-	})
+
+	// Better Auth — lives at /api/auth/*
+	.on(["GET", "POST"], "/auth/*", (c) => auth(c.env).handler(c.req.raw))
 
 	.route("/chat", chat);
 

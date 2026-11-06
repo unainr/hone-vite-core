@@ -1,24 +1,25 @@
 // apps/api/src/middleware/auth.ts
-import { getAuth } from "@clerk/hono"
 import { createMiddleware } from "hono/factory"
 import { HTTPException } from "hono/http-exception"
+import { auth } from "../lib/better-auth"
+
+type AuthVariables = {
+  userId: string
+}
+
+
 
 export const requireUser = createMiddleware<{
-  Variables: { userId: string }
+  Bindings: CloudflareBindings
+  Variables: AuthVariables
 }>(async (c, next) => {
-  const auth = getAuth(c)
-  if (!auth?.userId) throw new HTTPException(401, { message: "Please sign in to continue" })
-  c.set("userId", auth.userId)
+  const session = await auth(c.env).api.getSession({
+    headers: c.req.raw.headers,
+  })
+  if (!session?.user) {
+    throw new HTTPException(401, { message: "Please sign in to continue" })
+  }
+  c.set("userId", session.user.id)
   await next()
 })
 
-export const requireAuth = createMiddleware<{
-  Variables: { userId: string; orgId?: string }
-}>(async (c, next) => {
-  const auth = getAuth(c)
-  if (!auth?.userId) throw new HTTPException(401, { message: "Unauthorized" })
-  if (!auth.orgId) throw new HTTPException(401, { message: "No organization selected" })
-  c.set("userId", auth.userId)
-  c.set("orgId", auth.orgId)
-  await next()
-})

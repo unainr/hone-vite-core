@@ -6,7 +6,7 @@ import {
 	type DynamicToolUIPart,
 	type ToolUIPart,
 } from "ai";
-import { useAuth } from "@clerk/react";
+
 import {
 	ArrowUpIcon,
 	SparklesIcon,
@@ -114,21 +114,19 @@ function ToolLine({ part, streaming }: { part: ToolPart; streaming: boolean }) {
 }
 
 export function Chat() {
-	const { getToken } = useAuth();
+	
 	const [text, setText] = useState("");
 	const formRef = useRef<HTMLFormElement>(null);
 
 	const transport = useMemo(
-		() =>
-			new DefaultChatTransport({
-				api: `${import.meta.env.VITE_API_URL}/api/chat`,
-				headers: async (): Promise<Record<string, string>> => {
-					const token = await getToken();
-					return token ? { Authorization: `Bearer ${token}` } : {};
-				},
-			}),
-		[getToken],
-	);
+  () =>
+    new DefaultChatTransport({
+      api: `${import.meta.env.VITE_API_URL}/api/chat`,
+      // no headers needed — Better Auth uses cookies automatically
+      credentials: "include",
+    }),
+  []
+)
 
 	const { messages, sendMessage, status, stop, error } = useChat({ transport });
 	const busy = status === "submitted" || status === "streaming";
