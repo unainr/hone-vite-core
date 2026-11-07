@@ -3,7 +3,7 @@ import type { AppType } from "@backend/api";
 import { env } from "./env";
 
 
-export const api = hc<AppType>(env.apiUrl, {
+export const client = hc<AppType>(env.apiUrl, {
   init: {
     credentials: "include",
   },

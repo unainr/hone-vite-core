@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { HomeView } from "@/modules/home/views/home-view";
+import { TodoForm } from "@/components/todo-form";
 
 export const Route = createFileRoute("/_home/")({
 	component: Index,
@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_home/")({
 function Index() {
 	return (
 		<>
-			<HomeView />
+			<TodoForm />
 		</>
 	);
 }

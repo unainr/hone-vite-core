@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { nanoid } from "nanoid";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -74,3 +75,11 @@ export const verification = pgTable(
 );
 
 
+export const Todo = pgTable ("todos",{
+   id: text()
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    title: text("title").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+})
