@@ -4,7 +4,8 @@ import chat from "./routes/chat";
 import { auth } from "./lib/better-auth";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
-import todo from "./routes/todo";
+import project from "./routes/project";
+
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -20,7 +21,7 @@ const app = new Hono<{ Bindings: CloudflareBindings }>()
 	// Better Auth — lives at /api/auth/*
 	.on(["GET", "POST"], "/auth/*", (c) => auth(c.env).handler(c.req.raw))
 
-	.route("/chat", chat).route('/todo',todo)
+	.route("/chat", chat).route('/project',project)
 
 export type AppType = typeof app;
 export default app;

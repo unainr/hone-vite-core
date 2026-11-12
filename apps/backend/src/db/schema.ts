@@ -9,6 +9,7 @@ import {
 	jsonb,
 	uniqueIndex,
 	integer,
+	uuid,
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 
@@ -86,109 +87,36 @@ export const verification = pgTable(
 
 // ---------- app schema---------------------
 
-
 const id = () =>
 	text("id")
 		.primaryKey()
 		.$defaultFn(() => nanoid());
 
-export const projectStatus = pgEnum("project_status", [
-	"planning",
-	"building",
-	"ready",
-	"failed",
-]);
-
-// Added "system" role for LLM context instructions
-export const messageRole = pgEnum("message_role", ["system", "user", "assistant"]);
-
 export const projects = pgTable(
 	"projects",
 	{
 		id: id(),
-		ownerId: text("owner_id").notNull(), // Clerk userId
-		title: text("title").notNull(),
-		prompt: text("prompt").notNull(), // the first idea
-		status: projectStatus("status").notNull().default("building"),
-		plan: jsonb("plan"), // screens, theme (Phase 4)
-		snackSdkVersion: text("snack_sdk_version").notNull(),
-		
-		// ADDED: Required to load the iframe mockup in the browser and generate the Expo Go QR code
-		snackId: text("snack_id"), 
-		
+		userId: text("user_id").notNull(), // Clerk user id
+		name: text("name").notNull(),
+
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 		// FIXED: Added $onUpdate so this automatically changes when the project is edited
-		updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()), 
-	},
-	(t) => [index("projects_owner_idx").on(t.ownerId)],
-);
-
-// ADDED: The chat history for the left-side panel
-export const messages = pgTable(
-	"messages",
-	{
-		id: id(),
-		projectId: text("project_id")
+		updatedAt: timestamp("updated_at")
 			.notNull()
-			.references(() => projects.id, { onDelete: "cascade" }),
-		role: messageRole("role").notNull(),
-		content: text("content").notNull(),
-		metadata: jsonb("metadata"), // Optional: Store tool calls, code block references, or AI reasoning
-		createdAt: timestamp("created_at").notNull().defaultNow(),
+			.defaultNow()
+			.$onUpdate(() => new Date()),
 	},
-	(t) => [index("messages_project_idx").on(t.projectId, t.createdAt)],
+	(t) => [index("projects_owner_idx").on(t.userId)],
 );
+export const screens = pgTable("screens", {
+	id: id(),
 
-// current version of every file in a project
-export const projectFiles = pgTable(
-	"project_files",
-	{
-		id: id(),
-		projectId: text("project_id")
-			.notNull()
-			.references(() => projects.id, { onDelete: "cascade" }),
-		path: text("path").notNull(), // "App.js", "screens/Home.js"
-		content: text("content").notNull(),
-		// FIXED: Added $onUpdate
-		updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
-	},
-	(t) => [uniqueIndex("project_files_unique").on(t.projectId, t.path)],
-);
-
-// ── Phase 5: version history ───────────────────────────
-export const projectVersions = pgTable(
-	"project_versions",
-	{
-		id: id(),
-		projectId: text("project_id")
-			.notNull()
-			.references(() => projects.id, { onDelete: "cascade" }),
-		label: text("label").notNull(), // "Added settings screen"
-		files: jsonb("files").notNull(), // { "App.js": "...", ... } snapshot
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-	},
-	(t) => [index("versions_project_idx").on(t.projectId, t.createdAt)],
-);
-
-// ── Phase 6: credits ───────────────────────────────────
-export const userCredits = pgTable("user_credits", {
-	userId: text("user_id").primaryKey(), // Clerk userId
-	credits: integer("credits").notNull().default(100),
+ projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+	title: text("title").notNull(),
+	html: text("html").notNull(), // body HTML with Tailwind classes
+	width: integer("width").notNull().default(960),
+	height: integer("height").notNull().default(640),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-
-export const creditTransactions = pgTable(
-	"credit_transactions",
-	{
-		id: id(),
-		userId: text("user_id").notNull(),
-		amount: integer("amount").notNull(), // negative = spent, positive = refund/top-up
-		reason: text("reason").notNull(), // "build", "edit", "refund"
-		reference: text("reference").notNull(), // unique, makes refunds idempotent
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-	},
-	(t) => [
-        uniqueIndex("credit_tx_reference").on(t.reference),
-        // ADDED: Crucial for fast fetching of a user's billing history
-        index("credit_tx_user_idx").on(t.userId, t.createdAt) 
-    ],
-);
