@@ -111,9 +111,9 @@ export const projects = pgTable(
 export const screens = pgTable("screens", {
 	id: id(),
 
- projectId: text("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
+	projectId: text("project_id")
+		.notNull()
+		.references(() => projects.id, { onDelete: "cascade" }),
 	title: text("title").notNull(),
 	html: text("html").notNull(), // body HTML with Tailwind classes
 	width: integer("width").notNull().default(960),

@@ -1,70 +1,95 @@
 import * as React from "react"
 import { flushSync } from "react-dom"
-import { Moon, Sun, SunMoon } from "lucide-react"
 import { cn } from "../lib/utils"
 import { useTheme } from "./theme-provider"
-
-type Theme = "light" | "system" | "dark"
-
-const options: { value: Theme; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "system", label: "System" },
-  { value: "dark", label: "Dark" },
-]
-
-const CELL = 28 // px, one slot of the track
-const THUMB = 22 // px
-
-// Fade between stacked layers (gradients can't be transitioned directly).
-const layer = (on: boolean, extra = "") =>
-  cn(
-    "absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none",
-    on ? "opacity-100" : "opacity-0",
-    extra,
-  )
-
-const stars = [
-  { x: 8, y: 7, s: 1.5, d: "0s" },
-  { x: 20, y: 18, s: 1, d: "0.6s" },
-  { x: 30, y: 6, s: 1, d: "1.1s" },
-  { x: 43, y: 19, s: 1.5, d: "0.3s" },
-  { x: 56, y: 8, s: 1, d: "0.9s" },
-  { x: 72, y: 17, s: 1.5, d: "1.4s" },
-  { x: 76, y: 6, s: 1, d: "0.2s" },
-]
 
 export function ModeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
-  const refs = React.useRef<(HTMLButtonElement | null)[]>([])
-  React.useEffect(() => setMounted(true), [])
+  const [sysDark, setSysDark] = React.useState(false)
+  const btn = React.useRef<HTMLButtonElement>(null)
+  const swing = React.useRef<HTMLSpanElement>(null)
+  const cord = React.useRef<HTMLSpanElement>(null)
+  const bulb = React.useRef<HTMLSpanElement>(null)
+  const cone = React.useRef<HTMLSpanElement>(null)
 
-  const current = (mounted ? theme : "system") as Theme
-  const index = options.findIndex((o) => o.value === current)
-  const isDay = current === "light"
-  const isDusk = current === "system"
-  const isNight = current === "dark"
+  React.useEffect(() => {
+    setMounted(true)
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    const sync = () => setSysDark(mq.matches)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [])
 
-  const change = (value: Theme, e?: React.MouseEvent<HTMLElement>) => {
-    if (value === theme) return
+  // lamp is "on" in light mode (system follows the OS)
+  const isDark = mounted && (theme === "dark" || (theme === "system" && sysDark))
+
+  const animate = () => {
+    // 1. cord gets yanked down and snaps back
+    cord.current?.animate(
+      [
+        { transform: "translateY(0)" },
+        { transform: "translateY(8px)", offset: 0.3 },
+        { transform: "translateY(0)" },
+      ],
+      { duration: 550, easing: "cubic-bezier(0.3, 1.6, 0.5, 1)" },
+    )
+
+    // 2. whole lamp swings like a pendulum, then settles
+    swing.current?.animate(
+      [
+        { transform: "rotate(0deg)" },
+        { transform: "rotate(9deg)", offset: 0.18 },
+        { transform: "rotate(-6deg)", offset: 0.42 },
+        { transform: "rotate(3.5deg)", offset: 0.62 },
+        { transform: "rotate(-1.8deg)", offset: 0.8 },
+        { transform: "rotate(0deg)" },
+      ],
+      { duration: 1200, easing: "ease-out" },
+    )
+
+    // 3. turning ON: bulb + light flicker like an old filament
+    if (isDark) {
+      ;[bulb.current, cone.current].forEach((el) =>
+        el?.animate(
+          [
+            { opacity: 0.15 },
+            { opacity: 1, offset: 0.15 },
+            { opacity: 0.3, offset: 0.3 },
+            { opacity: 1, offset: 0.48 },
+            { opacity: 0.6, offset: 0.62 },
+            { opacity: 1 },
+          ],
+          { duration: 750, delay: 120 },
+        ),
+      )
+    }
+  }
+
+  const toggle = () => {
+    const next = isDark ? "light" : "dark"
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (!reduce) animate()
+
     const doc = document as Document & {
       startViewTransition?: (cb: () => void) => { ready: Promise<void> }
     }
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (!doc.startViewTransition || reduce) return setTheme(value)
+    if (!doc.startViewTransition || reduce) return setTheme(next)
 
-    const r = e?.currentTarget.getBoundingClientRect()
-    const x = r ? r.left + r.width / 2 : innerWidth / 2
-    const y = r ? r.top + r.height / 2 : 0
+    // light spreads out from the bulb
+    const r = btn.current!.getBoundingClientRect()
+    const x = r.left + r.width / 2
+    const y = r.top + 30
     const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
 
     doc
-      .startViewTransition(() => flushSync(() => setTheme(value)))
+      .startViewTransition(() => flushSync(() => setTheme(next)))
       .ready.then(() =>
         document.documentElement.animate(
           { clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
           {
-            duration: 600,
+            duration: 650,
             easing: "cubic-bezier(0.22, 1, 0.36, 1)",
             pseudoElement: "::view-transition-new(root)",
           },
@@ -72,111 +97,74 @@ export function ModeToggle({ className }: { className?: string }) {
       )
   }
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0
-    if (!dir) return
-    e.preventDefault()
-    const next = (index + dir + options.length) % options.length
-    refs.current[next]?.focus()
-    change(options[next].value)
-  }
-
   return (
-    <div
-      role="radiogroup"
-      aria-label="Theme"
-      onKeyDown={onKeyDown}
+    <button
+      ref={btn}
+      type="button"
+      onClick={toggle}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      aria-pressed={isDark}
+      title={isDark ? "Light" : "Dark"}
       className={cn(
-        "relative isolate overflow-hidden rounded-full ring-1 ring-black/10 dark:ring-white/15",
-        "shadow-[inset_0_1px_4px_rgba(0,0,0,0.3)]",
+        "group relative block h-15 w-10 shrink-0 rounded-md outline-none",
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
-      style={{ width: CELL * 3, height: CELL }}
     >
-      {/* ---------- sky ---------- */}
-      <div aria-hidden className="absolute inset-0 -z-10">
-        <div className={layer(isDay, "bg-linear-to-b from-sky-400 to-sky-200")} />
-        <div className={layer(isDusk, "bg-linear-to-r from-orange-300 via-rose-400 to-indigo-900")} />
-        <div className={layer(isNight, "bg-linear-to-b from-slate-950 to-indigo-950")} />
-
-        {/* stars */}
-        <div
-          className={cn(
-            "absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none",
-            isNight ? "opacity-100" : isDusk ? "opacity-40" : "opacity-0",
-          )}
-        >
-          {stars.map((s, i) => (
-            <span
-              key={i}
-              className="absolute animate-pulse rounded-full bg-white motion-reduce:animate-none"
-              style={{ left: s.x, top: s.y, width: s.s, height: s.s, animationDelay: s.d }}
-            />
-          ))}
-        </div>
-
-        {/* clouds */}
-        <div
-          className={cn(
-            "absolute inset-0 transition-[transform,opacity] duration-700 ease-out motion-reduce:transition-none",
-            isDay ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
-          )}
-        >
-          <span className="absolute -bottom-1 left-9 h-2.5 w-7 rounded-full bg-white/90" />
-          <span className="absolute -bottom-0.5 left-13.5 h-3 w-6 rounded-full bg-white/80" />
-          <span className="absolute -bottom-1 right-1 h-2 w-5 rounded-full bg-white/70" />
-        </div>
-      </div>
-
-      {/* faint icons for every slot, so each option is readable at a glance */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 grid grid-cols-3 place-items-center">
-        <Sun className="size-3.5 text-white/80" strokeWidth={2.25} />
-        <SunMoon className="size-3.5 text-white/80" strokeWidth={2.25} />
-        <Moon className="size-3.5 text-white/80" strokeWidth={2.25} />
-      </div>
-
-      {/* thumb: solid disc + crisp icon */}
+      {/* everything hangs from the top of the wire and swings together */}
       <span
+        ref={swing}
         aria-hidden
-        className="pointer-events-none absolute rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition-transform duration-700 ease-[cubic-bezier(0.34,1.35,0.64,1)] motion-reduce:transition-none"
-        style={{
-          width: THUMB,
-          height: THUMB,
-          left: (CELL - THUMB) / 2,
-          top: (CELL - THUMB) / 2,
-          transform: `translateX(${index * CELL}px)`,
-        }}
+        className="absolute inset-0 origin-top transition-transform duration-300 ease-out group-hover:rotate-3 motion-reduce:transition-none"
       >
-        <span className={layer(isDay, "grid place-items-center")}>
-          <Sun className="size-4 fill-amber-400 text-amber-500" strokeWidth={2.25} />
-        </span>
-        <span className={layer(isDusk, "grid place-items-center")}>
-          <SunMoon className="size-4 text-orange-500" strokeWidth={2.25} />
-        </span>
-        <span className={layer(isNight, "grid place-items-center")}>
-          <Moon className="size-4 fill-indigo-500 text-indigo-600" strokeWidth={2.25} />
+        {/* soft cone of light */}
+        <span
+          ref={cone}
+          className={cn(
+            "pointer-events-none absolute left-1/2 top-7.5 h-7 w-12 -translate-x-1/2",
+            "[clip-path:polygon(34%_0,66%_0,100%_100%,0_100%)] bg-linear-to-b from-amber-400/50 to-transparent",
+            "transition-opacity duration-500",
+            isDark ? "opacity-0" : "opacity-100",
+          )}
+        />
+
+        {/* wire */}
+        <span className="absolute left-1/2 top-0 h-3 w-px -translate-x-1/2 bg-muted-foreground/60" />
+
+        {/* shade */}
+        <span
+          className={cn(
+            "absolute left-1/2 top-3 h-4.5 w-9 -translate-x-1/2 transition-colors duration-500",
+            "[clip-path:polygon(24%_0,76%_0,100%_100%,0_100%)]",
+            isDark ? "bg-zinc-600" : "bg-amber-400",
+          )}
+        />
+
+        {/* bulb */}
+        <span
+          ref={bulb}
+          className={cn(
+            "absolute left-1/2 top-6.5 size-2.5 -translate-x-1/2 rounded-full transition-[background-color,box-shadow] duration-500",
+            isDark
+              ? "bg-zinc-500"
+              : "bg-amber-100 shadow-[0_0_12px_5px_rgba(251,191,36,0.6)]",
+          )}
+        />
+
+        {/* pull cord (dangles a little further on hover) */}
+        <span
+          className="absolute left-6 top-7.25 h-7 w-4 transition-transform duration-300 group-hover:translate-y-0.75 motion-reduce:transition-none"
+        >
+          <span
+            ref={cord}
+            className={cn(
+              "absolute inset-0 origin-top",
+              "before:absolute before:left-1.75 before:top-0 before:h-5.5 before:w-px before:bg-muted-foreground",
+              "after:absolute after:left-1 after:top-5.25 after:size-1.75 after:rounded-full after:bg-foreground",
+            )}
+          />
         </span>
       </span>
-
-      {/* ---------- hit areas ---------- */}
-      <div className="absolute inset-0 grid grid-cols-3">
-        {options.map(({ value, label }, i) => (
-          <button
-            key={value}
-            ref={(el) => {
-              refs.current[i] = el
-            }}
-            type="button"
-            role="radio"
-            aria-checked={current === value}
-            aria-label={label}
-            title={label}
-            tabIndex={current === value ? 0 : -1}
-            onClick={(e) => change(value, e)}
-            className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80"
-          />
-        ))}
-      </div>
-    </div>
+    </button>
   )
 }
