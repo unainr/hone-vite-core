@@ -92,31 +92,16 @@ const id = () =>
 		.primaryKey()
 		.$defaultFn(() => nanoid());
 
-export const projects = pgTable(
-	"projects",
+export const todos = pgTable(
+	"todos",
 	{
 		id: id(),
-		userId: text("user_id").notNull(), // Clerk user id
-		name: text("name").notNull(),
 
+		userId: text("user_id").notNull(),
+		title: text("title").notNull(),
+		done: boolean("done").notNull().default(false),
+		dueDate: timestamp("due_date"),
 		createdAt: timestamp("created_at").notNull().defaultNow(),
-		// FIXED: Added $onUpdate so this automatically changes when the project is edited
-		updatedAt: timestamp("updated_at")
-			.notNull()
-			.defaultNow()
-			.$onUpdate(() => new Date()),
 	},
-	(t) => [index("projects_owner_idx").on(t.userId)],
+	(t) => [index("todos_user_idx").on(t.userId)],
 );
-export const screens = pgTable("screens", {
-	id: id(),
-
-	projectId: text("project_id")
-		.notNull()
-		.references(() => projects.id, { onDelete: "cascade" }),
-	title: text("title").notNull(),
-	html: text("html").notNull(), // body HTML with Tailwind classes
-	width: integer("width").notNull().default(960),
-	height: integer("height").notNull().default(640),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
